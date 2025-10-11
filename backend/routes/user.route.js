@@ -24,4 +24,8 @@ router.get("/profile",authMiddleware.authUserMiddleware,userController.profileCo
 
 router.post('/logout',authMiddleware.authUserMiddleware,userController.logoutController)
 
+router.post('/forgot-password',
+    body('email').isEmail().withMessage("Invalid email format"),
+    userController.forgotPasswordController);
+
 export default router;

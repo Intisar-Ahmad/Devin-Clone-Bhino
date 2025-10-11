@@ -46,6 +46,16 @@ userSchema.methods.generateAuthToken = function() {
     return token;
 }
 
+userSchema.methods.generatePasswordResetToken = function() {
+  const user = this;
+  const token = jwt.sign(
+    { _id: user._id, purpose: "password_reset" },
+    process.env.JWT_SECRET,
+    { expiresIn: "5m" }
+  );
+  return token;
+};
+
 
 const User = mongoose.model("user", userSchema);
 
