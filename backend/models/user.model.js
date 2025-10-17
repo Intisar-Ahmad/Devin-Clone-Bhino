@@ -10,7 +10,8 @@ const userSchema = new mongoose.Schema({
         trim:true,
         minlength:[5, "Email must be at least 5 characters"],
         lowercase:true,
-        maxlength:[100, "Email must be at most 100 characters"]
+        maxlength:[100, "Email must be at most 100 characters"],
+        index: true 
     },
     password: {
         type: String,
@@ -55,6 +56,19 @@ userSchema.methods.generatePasswordResetToken = function() {
   );
   return token;
 };
+
+userSchema.pre('deleteOne', { document: true, query: false }, async function() {
+    const ProjectModel = mongoose.model('project');
+    
+    // Remove user from projects where they are a member
+    await ProjectModel.updateMany(
+        { members: this._id },
+        { $pull: { members: this._id } }
+    );
+
+    // Delete projects where user is the creator
+    await ProjectModel.deleteMany({ creator: this._id });
+});
 
 
 const User = mongoose.model("user", userSchema);

@@ -1,5 +1,5 @@
 import Project from "../models/project.model.js";
-import { createProject, getAllProjectByUserId } from "../services/project.service.js";
+import { createProject, getAllProjectByUserId, getProjectById } from "../services/project.service.js";
 import { validationResult } from "express-validator";
 import User from "../models/user.model.js";
 import mongoose from "mongoose";
@@ -125,5 +125,69 @@ export const addUser = async (req, res) => {
   } catch (error) {
     console.log(error);
     res.status(500).json({ errors: error.message });
+  }
+};
+
+export const removeUser = async (req, res) => {
+  const errors = validationResult(req);
+
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ errors: errors.array() });
+  }
+
+  try {
+    const { userId, projectId } = req.body;
+    const loggedInUser = req.user;
+
+    if (!userId || !projectId) return res.status(400).json({ errors: "userId and projectId are required" });
+
+    if (!loggedInUser) return res.status(401).json({ errors: "Unauthorized" });
+
+    if (!mongoose.Types.ObjectId.isValid(userId)) 
+      return res.status(400).json({ errors: "Invalid userId" });
+
+    if (!mongoose.Types.ObjectId.isValid(projectId)) 
+      return res.status(400).json({ errors: "Invalid projectId" });
+
+    const project = await Project.findById(projectId);
+    if (!project) return res.status(404).json({ errors: "Project not found" });
+
+    if (project.creator.toString() !== loggedInUser._id.toString()) {
+      return res.status(403).json({ errors: "Only creator can remove user from project" });
+    }
+
+    if (!project.users.includes(userId)) {
+      return res.status(404).json({ errors: "User not found in project" });
+    }
+
+    project.users = project.users.filter(id => id.toString() !== userId.toString());
+    await project.save();
+    res.status(200).json({ msg: "User removed from project successfully", project });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({ errors: error.message });
+  }
+};
+
+
+export const getProject = async (req, res) => {
+  try {
+    const {projectId} = req.params;
+    if(!projectId){
+      return res.status(400).json({errors:"ProjectId is required"});
+    }
+    const project = await getProjectById(projectId);
+
+    if(!project){
+      return res.status(404).json({errors:"Project not found"});
+    }
+
+    return res.status(200).json({project});
+
+
+
+  } catch (error) {
+    console.log(error)
+    req.status(500).json({errors:error.message})
   }
 };

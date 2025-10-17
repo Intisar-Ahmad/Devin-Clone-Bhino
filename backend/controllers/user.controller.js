@@ -4,6 +4,7 @@ import { validationResult } from "express-validator";
 import redisClient from "../services/redis.service.js";
 import { sendEmail } from "../services/sendEmail.service.js";
 import jwt from "jsonwebtoken";
+import { escapeRegex } from "../services/user.service.js";
 
 export const registerUserController = async (req, res) => {
   const errors = validationResult(req);
@@ -22,7 +23,7 @@ export const registerUserController = async (req, res) => {
 
     res.status(201).json({ user: userObj, token });
   } catch (error) {
-    res.status(400).send(error.message);
+    res.status(400).json({errors:error.message});
   }
 };
 
@@ -63,13 +64,14 @@ export const loginUserController = async (req, res) => {
 
     res.status(200).json({ user: userObj, token });
   } catch (error) {
-    res.status(400).send(error.message);
+    res.status(400).json({errors:error.message});
   }
 };
 
 export const profileController = async (req, res) => {
-  console.log(req.user);
-
+  // console.log(req.user);
+try {
+  
   if (!req.user) {
     return res.status(401).json({ errors: "User not authenticated" });
   }
@@ -81,6 +83,9 @@ export const profileController = async (req, res) => {
   res.status(200).json({
     user: req.user,
   });
+} catch (error) {
+  res.status(500).json({errors:error.message});
+}
 };
 
 export const logoutController = async (req, res) => {
@@ -160,7 +165,7 @@ export const resetPasswordController = async (req, res) => {
     const user = await userModel.findById(decoded._id).select("+password");
 
     if (!user) {
-      return res.status(401).json({ msg: "User not found" });
+      return res.status(401).json({ errors: "User not found" });
     }
 
     user.password = password;
@@ -174,3 +179,37 @@ export const resetPasswordController = async (req, res) => {
     return res.status(401).json({ errors: error.message });
   }
 };
+
+export const searchUsers = async (req,res)=>{
+ const raw = String(req.query.q ?? "").trim();
+  if (!raw) return res.json([]);
+
+  // Defensive limits
+  if (raw.length > 100) return res.status(400).json({ error: "Query too long" });
+
+  // Escape to prevent regex injection / unexpected patterns
+  const safe = escapeRegex(raw);
+
+  // Choose mode: 'startsWith' is index-friendly, 'contains' matches anywhere.
+  const mode = req.query.mode === "startsWith" ? "startsWith" : "contains";
+
+  // Build regex
+  const pattern = mode === "startsWith" ? `^${safe}` : safe;
+  const regex = new RegExp(pattern, "i");
+
+  try {
+    // If you have a unique index on email and you use '^' (startsWith),
+    // MongoDB can use the index which is fast.
+   const users = await userModel.find(
+  { email: { $regex: regex } },  
+  { email: 1, _id: 1 }
+)
+  .limit(15)
+  .lean();// .lean() returns plain objects (faster & smaller)
+
+    return res.json(users);
+  } catch (err) {
+    console.error("searchUsers error:", err);
+    return res.status(500).json({ error: "Server error" });
+  }
+}

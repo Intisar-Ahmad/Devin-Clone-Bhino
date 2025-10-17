@@ -29,3 +29,23 @@ export const getAllProjectByUserId = async ({ userId }) => {
 
     return allUserProjects
 }
+
+export const getProjectById = async (projectId)=>{
+    try {
+        if(!projectId){
+            throw new Error("ProjectId is required");
+        }
+        const project = await Project.findById(projectId).populate('users','email');
+
+        if(!project){
+            throw new Error("Project not found");
+        }
+
+       
+        return project;
+
+
+    } catch (error) {
+        throw error;
+    }
+}
