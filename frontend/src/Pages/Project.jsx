@@ -7,6 +7,7 @@ import Loader from "../components/Loader.jsx";
 import { checkAuth } from "../utils/checkToken.utils.js";
 import { useUser } from "../context/user.context.jsx";
 import { initializeSocket, receiveMsg, sendMsg } from "../config/socketIO.js";
+import Markdown from "markdown-to-jsx";
 
 export default function ProjectPageLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -390,7 +391,11 @@ export default function ProjectPageLayout() {
                     : "bg-gray-800/80 rounded-bl-none"
                 }`}
               >
-                {msg.text}
+                {msg.sender === "Bevin" ? (
+                  <Markdown>{msg.text}</Markdown>
+                ) : (
+                  <span>{msg.text}</span>
+                )}
               </div>
             </div>
           ))}
